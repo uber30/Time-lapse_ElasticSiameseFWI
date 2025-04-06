@@ -1,8 +1,8 @@
 ![LOGO](https://github.com/DeepWave-KAUST/ElasticSiameseFWI/blob/main/asset/Fig1.png)
 
-Reproducible material for **DW0078, Enhancing Multi-parameter Elastic Full Waveform Inversion with a Siamese Network - Omar M. Saad and Tariq Alkhalifah**
+Official reproducible material for **Enhancing Multi-parameter Elastic Full Waveform Inversion with a Siamese Network - Omar M. Saad and Tariq Alkhalifah**
 
-[Click here](https://kaust.sharepoint.com/:f:/r/sites/M365_Deepwave_Documents/Shared%20Documents/Restricted%20Area/REPORTS/DW0078?csf=1&web=1&e=sBwoLF) to access the Project Report. Authentication to the _Restricted Area_ filespace is required.
+
 
 # Project structure
 This repository is organized as follows:
@@ -15,10 +15,8 @@ This repository is organized as follows:
 ## Notebooks
 The following notebooks are provided:
 
-- :orange_book: ``ElasticSiameseFWI_BPSalt.ipynb``: notebook for ElasticSiameseFWI framework for BP Salt model;
-- :orange_book: ``ElasticSiameseFWI_MultiSource_Overthrust.ipynb``: notebook for ElasticSiameseFWI multi-source framework for Overthrust model;
+
 - :orange_book: ``ElasticSiameseFWI_SeamArid_NormalizedLoss.ipynb``: notebook for ElasticSiameseFWI framework for Seam Arid model using normalized loss function;
-- :orange_book: ``ElasticSiameseFWI_Volve_FieldData_4Hz.ipynb``: notebook for ElasticSiameseFWI framework for Volve field data using normalized loss function;
 
 
 
@@ -39,7 +37,16 @@ conda activate ElasticSiameseFWI
 configurations may be required for different combinations of workstation and GPU.
 
 ## Cite us 
-DW0078 - Omar M. Saad and Tariq Alkhalifah (2025) Enhancing Multi-parameter Elastic Full Waveform Inversion
-with a Siamese Network
-
+```bibtex
+@article{saad2025siamesefwi,
+  title={Enhancing Multi-parameter Elastic Full Waveform Inversion with a Siamese Network},
+  author={Saad, Omar M and Alkhalifah, Tariq},
+  journal={The Leading Edge},
+  volume={1},  % Replace with actual volume number
+  number={1},  % Replace with actual issue number
+  pages={1-10}, % Replace with actual page range
+  year={2025},
+  doi={https://doi.org/xxxxx}, % Replace with actual DOI
+  publisher={Society of Exploration Geophysicists}
+}
 
