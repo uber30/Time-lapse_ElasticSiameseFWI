@@ -42,11 +42,11 @@ configurations may be required for different combinations of workstation and GPU
   title={Enhancing Multi-parameter Elastic Full Waveform Inversion with a Siamese Network},
   author={Saad, Omar M and Alkhalifah, Tariq},
   journal={The Leading Edge},
-  volume={1},  % Replace with actual volume number
-  number={1},  % Replace with actual issue number
-  pages={1-10}, % Replace with actual page range
+  volume={1},  
+  number={1}, 
+  pages={1-10}, 
   year={2025},
-  doi={https://doi.org/xxxxx}, % Replace with actual DOI
+  doi={https://doi.org/}, % Replace with actual DOI
   publisher={Society of Exploration Geophysicists}
 }
 
