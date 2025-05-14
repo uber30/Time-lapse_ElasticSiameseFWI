@@ -8,7 +8,7 @@ Official reproducible material for **Enhancing Multi-parameter Elastic Full Wave
 This repository is organized as follows:
 
 * :open_file_folder: **asset**: folder containing logo;
-* :open_file_folder: **data**: folder containing data. Please note that the Volve field data is uploaded to the restricted area;
+* :open_file_folder: **data**: folder containing data;
 * :open_file_folder: **Model**: folder containing the Siamese network;
 * :open_file_folder: **utils**: folder containing the utilities;
 
