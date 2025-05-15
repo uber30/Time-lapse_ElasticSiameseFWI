@@ -17,7 +17,7 @@ The following notebooks are provided:
 
 
 - :orange_book: ``ElasticSiameseFWI_SeamArid_NormalizedLoss.ipynb``: notebook for ElasticSiameseFWI framework for Seam Arid model using normalized loss function;
-
+- :orange_book: ``SiameseEFWI_SEAMArid_Normalize_Pressure.ipynb``: notebook for ElasticSiameseFWI framework for Seam Arid (pressure component) model using normalized loss function;
 
 
 ## Getting started :space_invader: :robot:
