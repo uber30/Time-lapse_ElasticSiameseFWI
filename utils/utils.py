@@ -11,6 +11,7 @@ import deepwave
 import numpy as np
 import scipy
 import scipy.io as spio
+import matplotlib.pyplot as plt
 from torch import autograd
 import torch.nn.functional as F
 from torch.autograd import Variable
@@ -335,7 +336,6 @@ def highpass(data, freq, df, corners, zerophase, axis):
         return sosfilt(sos, data, axis)
 
 
-
 def loadtruemodel(data_dir, num_dims, vmodel_dim):
     """
         Load the true model
@@ -590,7 +590,7 @@ def TVLoss(x):
     x      = x.float()
     dh     = torch.pow(x[:,1:] - x[:,:-1], 2)
     dw     = torch.pow(x[1:,:] - x[:-1,:], 2)
-    tvloss = torch.sum(torch.pow(dh[:-1,:] + dw[:, :-1], 0.5)).float()
+    tvloss = torch.sum(torch.pow(dh[:-1, :] + dw[:, :-1] + 1e-8, 0.5)).float()
 
     return tvloss
 
@@ -607,7 +607,7 @@ def ATVLoss(x):
     x        = x.float()
     dh       = x[:,1:] - x[:,:-1]
     dw       = x[1:,:] - x[:-1,:]
-    atvloss  = torch.sum(torch.abs(dh[:-1,:]) + torch.abs(dw[:, :-1])).float()
+    atvloss  = torch.sum(torch.abs(dh) + torch.abs(dw)).float()
 
     return atvloss
 
@@ -749,6 +749,271 @@ class PhySimulator(nn.Module):
        
         return batch_rcv_amps_pred
     
+def perturb_velocity_model(
+    velocity_model,
+    center,
+    lateral_extent,
+    vertical_layer_width,
+    max_vertical_extent_dilation,
+    compaction_magnitude,
+    dilation_magnitude
+):
+    """
+    Perturbs a velocity model with a flat layer (compaction) and a cosine taper (dilation).
+
+    Args:
+        velocity_model (2D array): The original velocity model.
+        center (tuple): The center of the perturbation (z, x).
+        lateral_extent (int): The lateral extent of the perturbation.
+        vertical_layer_width (int): The vertical width of the compaction layer.
+        max_vertical_extent_dilation (int): The maximum vertical extent of the dilation.
+        compaction_magnitude (float): The velocity change magnitude for compaction.
+        dilation_magnitude (float): The maximum velocity change magnitude for dilation.
+
+    Returns:
+        2D array: The perturbed velocity model.
+    """
+    perturbed_model = velocity_model.copy()
+    z_center, x_center = center
+
+    # Define the bounds of the compaction layer
+    z_start_layer = z_center
+    z_end_layer = z_center + vertical_layer_width
+    x_start = max(0, x_center - lateral_extent)
+    x_end = min(velocity_model.shape[1], x_center + lateral_extent)
+
+    # Apply compaction to the flat layer
+    perturbed_model[z_start_layer:z_end_layer, x_start:x_end] += compaction_magnitude
+
+    # Define the bounds of the dilation region
+    z_start_dilation = z_center
+    z_end_dilation = max(0, z_center - max_vertical_extent_dilation)
+    dilation_height =  z_start_dilation - z_end_dilation 
+
+    # Create the cosine taper for dilation
+    for z in range(z_end_dilation, z_start_dilation):
+        vertical_factor = 0.5 * (1 + np.cos(np.pi * (z - z_start_dilation) / dilation_height))
+        for x in range(x_start, x_end):
+            lateral_factor = 0.5 * (1 + np.cos(np.pi * (x - x_center) / lateral_extent))
+            taper = dilation_magnitude * vertical_factor * lateral_factor
+            perturbed_model[z, x] -=  2 * taper
+
+    return perturbed_model
+
+def plot_base_monitor(base_true, monitor_true, dx, parameter='VP', diff='300'):
+    box_min = monitor_true.min()
+    box_max = monitor_true.max()
+
+    # Do a 1x3 plot showing true base, monitor and difference models
+    fig, axs = plt.subplots(1, 3, figsize=(16, 6), sharey=True)
+    # Plot true model
+    im = axs[0].imshow(base_true, vmin=box_min, vmax=box_max, cmap='jet', \
+                     extent=[0, base_true.shape[1]*dx[1], base_true.shape[0]*dx[0], 0])
+    axs[0].set_title(f'Base {parameter} model')
+    axs[0].set_xlabel('Position (km)')
+    axs[0].set_ylabel('Depth (km)')
+
+    pos = axs[0].get_position()
+    cbar_ax = fig.add_axes([pos.x0 - 0.05, pos.y0 - 0.12, pos.width, 0.02])  # [left, bottom, width, height]
+    fig.colorbar(im, cax=cbar_ax, orientation='horizontal')
+
+    # Plot monitor model
+    im = axs[1].imshow(monitor_true, vmin=box_min, vmax=box_max, cmap='jet', 
+                       extent=[0, monitor_true.shape[1]*dx[1], monitor_true.shape[0]*dx[0], 0])
+    axs[1].set_title(f'Monitor {parameter} model')
+    axs[1].set_xlabel('Position (km)')
+
+    pos = axs[1].get_position()
+    cbar_ax = fig.add_axes([pos.x0, pos.y0 - 0.12, pos.width, 0.02])  # [left, bottom, width, height]
+    fig.colorbar(im, cax=cbar_ax, orientation='horizontal')
+    # Plot difference model
+    im = axs[2].imshow((monitor_true - base_true), vmin=-diff, \
+                vmax=diff, cmap='jet', extent=[0, monitor_true.shape[1]*dx[1], monitor_true.shape[0]*dx[0], 0])
+    axs[2].set_title(f'Difference {parameter} model')
+    axs[2].set_xlabel('Position (km)')
+
+    pos = axs[2].get_position()
+    cbar_ax = fig.add_axes([pos.x0 + 0.05, pos.y0 - 0.12, pos.width, 0.02])  # [left, bottom, width, height]
+    fig.colorbar(im, cax=cbar_ax, orientation='horizontal')
+
+    plt.tight_layout();
+
+def plot_true_inv(model_true, model_inv, dx, parameter='VP', diff='300'):
+    box_min = model_true.min()
+    box_max = model_true.max()
+
+    # Do a 1x3 plot showing true base, monitor and difference models
+    fig, axs = plt.subplots(1, 3, figsize=(16, 6), sharey=True)
+    # Plot true model
+    im = axs[0].imshow(model_true, vmin=box_min, vmax=box_max, cmap='jet', \
+                     extent=[0, model_true.shape[1]*dx[1], model_true.shape[0]*dx[0], 0])
+    axs[0].set_title(f'True {parameter} model')
+    axs[0].set_xlabel('Position (km)')
+    axs[0].set_ylabel('Depth (km)')
+
+    pos = axs[0].get_position()
+    cbar_ax = fig.add_axes([pos.x0 - 0.05, pos.y0 - 0.12, pos.width, 0.02])  # [left, bottom, width, height]
+    fig.colorbar(im, cax=cbar_ax, orientation='horizontal')
+
+    # Plot monitor model
+    im = axs[1].imshow(model_inv, vmin=box_min, vmax=box_max, cmap='jet', \
+                       extent=[0, model_inv.shape[1]*dx[1], model_inv.shape[0]*dx[0], 0])
+    axs[1].set_title(f'Inverted {parameter} model')
+    axs[1].set_xlabel('Position (km)')
+
+    pos = axs[1].get_position()
+    cbar_ax = fig.add_axes([pos.x0, pos.y0 - 0.12, pos.width, 0.02])  # [left, bottom, width, height]
+    fig.colorbar(im, cax=cbar_ax, orientation='horizontal')
+    # Plot difference model
+    im = axs[2].imshow((model_inv - model_true), vmin=-diff, vmax=diff, cmap='jet', \
+                       extent=[0, model_inv.shape[1]*dx[1], model_inv.shape[0]*dx[0], 0])
+    axs[2].set_title(f'Error {parameter} model')
+    axs[2].set_xlabel('Position (km)')
+
+    pos = axs[2].get_position()
+    cbar_ax = fig.add_axes([pos.x0 + 0.05, pos.y0 - 0.12, pos.width, 0.02])  # [left, bottom, width, height]
+    fig.colorbar(im, cax=cbar_ax, orientation='horizontal')
+
+    plt.tight_layout();
+
+def plot_metrics_efwi(fwi_result, filename='', title=''):
+    ## Make a plot to shot the metrics
+    metrics = scipy.io.loadmat(fwi_result + filename)
+    # Extract loss
+    loss = metrics['Loss'][0][1:]
+    # Extract SNR
+    snrp = metrics['SNRP'][0][1:]
+    snrs = metrics['SNRS'][0][1:]
+    snrrho = metrics['SNRrho'][0][1:]
+    # Extract  SSMIM
+    ssimp = metrics['SSIMP'][0][1:]
+    ssims = metrics['SSIMS'][0][1:]
+    ssimrho = metrics['SSIMrho'][0][1:]
+    # Extract error
+    errorp = metrics['ERRORP'][0][1:]
+    errors = metrics['ERRORS'][0][1:]
+    errorrho = metrics['ERRORrho'][0][1:]
+
+
+    print(f'Final results Vp: \t Final results Vs: \t Final results rho:'\
+          f'\nLoss = {loss[-1]}'\
+          f'\nSNR = {snrp[-1]}) \t SNR = {snrs[-1]} \t SNR = {snrrho[-1]}'\
+          f'\nSSIM = {ssimp[-1]}) \t SSIM = {ssims[-1]} \t SSIM = {ssimrho[-1]}'\
+          f'\nRE = {errorp[-1]}) \t RE = {errors[-1]} \t RE = {errorrho[-1]})')
+
+    # Plot the learning curves, putting together those that belong to the same class (meaning a total of 4 plots)
+    # Plot the learning curves
+    fig, axes = plt.subplots(2, 2, figsize=(10, 8))
+    fig.suptitle('Learning Curves ' + title, fontsize=16)
+
+    # Plot Loss
+    axes[0, 0].plot(loss, label='Loss', color='blue')
+    axes[0, 0].set_title('Loss')
+    axes[0, 0].set_xlabel('Iterations')
+    axes[0, 0].set_ylabel('Loss')
+    axes[0, 0].legend()
+    axes[0, 0].grid(True)
+
+    # Plot SNR
+    axes[0, 1].plot(snrp, label='Vp', color='red')
+    axes[0, 1].plot(snrs, label='Vs', color='green')
+    axes[0, 1].plot(snrrho, label='rho', color='purple')
+    axes[0, 1].set_title('Signal-to-Noise Ratio (SNR)')
+    axes[0, 1].set_xlabel('Iterations')
+    axes[0, 1].set_ylabel('SNR (dB)')
+    axes[0, 1].legend()
+    axes[0, 1].grid(True)
+
+    # Plot SSIM
+    axes[1, 0].plot(ssimp, label='Vp', color='orange')
+    axes[1, 0].plot(ssims, label='Vs', color='cyan')
+    axes[1, 0].plot(ssimrho, label='rho', color='magenta')
+    axes[1, 0].set_title('Structural Similarity Index (SSIM)')
+    axes[1, 0].set_xlabel('Iterations')
+    axes[1, 0].set_ylabel('SSIM')
+    axes[1, 0].legend()
+    axes[1, 0].grid(True)
+
+    # Plot Error
+    axes[1, 1].plot(errorp, label='Vp', color='brown')
+    axes[1, 1].plot(errors, label='Vs', color='pink')
+    axes[1, 1].plot(errorrho, label='rho', color='gray')
+    axes[1, 1].set_title('Relative Error')
+    axes[1, 1].set_xlabel('Iterations')
+    axes[1, 1].set_ylabel('Error')
+    axes[1, 1].legend()
+    axes[1, 1].grid(True)
+
+    # Adjust layout
+    plt.tight_layout(rect=[0, 0, 1, 0.96])
+    plt.show()
+
+def plot_metrics_fwi(fwi_result, filename='', title=''):
+    ## Make a plot to shot the metrics
+    metrics = scipy.io.loadmat(fwi_result + filename)
+    # Extract loss
+    loss = metrics['Loss'][0][1:]
+    # Extract SNR
+    snrp = metrics['SNR'][0][1:]
+
+    # Extract  SSMIM
+    ssimp = metrics['SSIM'][0][1:]
+
+    # Extract error
+    errorp = metrics['ERROR'][0][1:]
+
+
+    print(f'Final results Vp:' \
+          f'\nLoss = {loss[-1]}'\
+          f'\nSNR = {snrp[-1]})'\
+          f'\nSSIM = {ssimp[-1]})'\
+          f'\nRE = {errorp[-1]})')
+
+    # Plot the learning curves, putting together those that belong to the same class (meaning a total of 4 plots)
+    # Plot the learning curves
+    fig, axes = plt.subplots(2, 2, figsize=(10, 8))
+    fig.suptitle('Learning Curves ' + title, fontsize=16)
+
+    # Plot Loss
+    axes[0, 0].plot(loss, label='Loss', color='blue')
+    axes[0, 0].set_title('Loss')
+    axes[0, 0].set_xlabel('Iterations')
+    axes[0, 0].set_ylabel('Loss')
+    axes[0, 0].legend()
+    axes[0, 0].grid(True)
+
+    # Plot SNR
+    axes[0, 1].plot(snrp, label='Vp', color='red')
+
+    axes[0, 1].set_title('Signal-to-Noise Ratio (SNR)')
+    axes[0, 1].set_xlabel('Iterations')
+    axes[0, 1].set_ylabel('SNR (dB)')
+    axes[0, 1].legend()
+    axes[0, 1].grid(True)
+
+    # Plot SSIM
+    axes[1, 0].plot(ssimp, label='Vp', color='orange')
+
+    axes[1, 0].set_title('Structural Similarity Index (SSIM)')
+    axes[1, 0].set_xlabel('Iterations')
+    axes[1, 0].set_ylabel('SSIM')
+    axes[1, 0].legend()
+    axes[1, 0].grid(True)
+
+    # Plot Error
+    axes[1, 1].plot(errorp, label='Vp', color='brown')
+
+    axes[1, 1].set_title('Relative Error')
+    axes[1, 1].set_xlabel('Iterations')
+    axes[1, 1].set_ylabel('Error')
+    axes[1, 1].legend()
+    axes[1, 1].grid(True)
+
+    # Adjust layout
+    plt.tight_layout(rect=[0, 0, 1, 0.96])
+    plt.show()
+
+
 
 def vp_to_vs(vp):
     """
@@ -905,3 +1170,56 @@ def highpass_filter(freq, wavelet, dt, pad=None):
             wavelet = wavelet[..., pad[0]:]
         
     return wavelet
+
+def add_awgn(data, snr_db):
+    """
+    Add Additive White Gaussian Noise (AWGN) to data at a given SNR in dB.
+
+    Parameters:
+    ----------
+    data : torch.Tensor or np.ndarray
+        The clean synthetic shot gather(s).
+    snr_db : float
+        Desired signal-to-noise ratio in decibels (dB).
+
+    Returns:
+    -------
+    noisy_data : same type as input
+        Data with added Gaussian noise.
+    """
+    if isinstance(data, np.ndarray):
+        power_signal = np.mean(data ** 2)
+        snr_linear = 10 ** (snr_db / 10)
+        noise_power = power_signal / snr_linear
+        noise = np.random.normal(0, np.sqrt(noise_power), size=data.shape)
+        return data + noise
+
+    elif isinstance(data, torch.Tensor):
+        power_signal = torch.mean(data ** 2)
+        snr_linear = 10 ** (snr_db / 10)
+        noise_power = power_signal / snr_linear
+        noise = torch.randn_like(data) * torch.sqrt(noise_power)
+        return data + noise
+
+    else:
+        raise TypeError("Input must be a NumPy array or PyTorch tensor.")
+
+
+def l1_reg(x):
+    """
+    L1 regularization for 2D image or tensor
+    :param x: Input tensor
+    :return: L1 regularization value
+    """
+    return torch.sum(torch.abs(x)).float()
+
+def tv_reg(x):
+    """
+    Total variation regularization for 2D image
+    :param x: Input image
+    :return: Total variation regularization
+    """
+    
+    x_diff = x[:, 1:] - x[:, :-1]
+    y_diff = x[1:, :] - x[:-1, :]
+    return torch.sum(torch.abs(x_diff)).float() + torch.sum(torch.abs(y_diff)).float()

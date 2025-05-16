@@ -1,24 +1,28 @@
 ![LOGO](https://github.com/DeepWave-KAUST/ElasticSiameseFWI/blob/main/asset/Fig1.png)
 
-Official reproducible material for **Enhancing Multi-parameter Elastic Full Waveform Inversion with a Siamese Network - Omar M. Saad and Tariq Alkhalifah**
-
+Reproducible material for Time-Lapse multiparameter FWI, using the ElasticSiameseFWI from **Enhancing Multi-parameter Elastic Full Waveform Inversion with a Siamese Network - Omar M. Saad and Tariq Alkhalifah**
 
 
 # Project structure
 This repository is organized as follows:
 
 * :open_file_folder: **asset**: folder containing logo;
-* :open_file_folder: **data**: folder containing data;
-* :open_file_folder: **Model**: folder containing the Siamese network;
-* :open_file_folder: **utils**: folder containing the utilities;
+* :open_file_folder: **data**: folder containing model data;
+* :open_file_folder: **Model**: folder containing the Siamese **networks**;
+* :open_file_folder: **utils**: folder containing the utilities (new funcs);
 
 ## Notebooks
 The following notebooks are provided:
 
 
-- :orange_book: ``ElasticSiameseFWI_SeamArid_NormalizedLoss.ipynb``: notebook for ElasticSiameseFWI framework for Seam Arid model using normalized loss function;
-- :orange_book: ``SiameseEFWI_SEAMArid_Normalize_Pressure.ipynb``: notebook for ElasticSiameseFWI framework for Seam Arid (pressure component) model using normalized loss function;
-
+- :orange_book: ``Overthrust_parallel_cascaded_noise_constDen.ipynb``: notebook using ElasticSiameseFWI framework for the Overthrust model with the regularized parallel and cascaded approach;
+- :orange_book: ``Overthrust_parallel_cascaded_noise_constDenFWI.ipynb``: notebook using EFWI for the Overthrust model with the regularized parallel and cascaded approach;
+- :orange_book: ``Overthrust_joint_reg_noise.ipynb``: notebook using ElasticSiameseFWI framework for the Overthrust model with the joint inversion approach;
+- :orange_book: ``Overthrust_joint_reg_noiseFWI.ipynb``: notebook using EFWI for the Overthrust model with the joint inversion approach;
+- :blue_book: ``SiameseFWI_ParallelCascaded.ipynb``: notebook using SiameseFWI framework for the Overthrust model (only Vp) with the regularized parallel and cascaded approach;
+- :blue_book: ``SiameseFWI_ParallelCascadedFWI.ipynb``: notebook using FWI for the Overthrust model (only Vp) with the regularized parallel and cascaded approach;
+- :blue_book: ``SiameseFWI_DDWI_CDWI.ipynb``: notebook using SiameseFWI framework for the Overthrust model (only Vp) with the coupled approaches;
+- :blue_book: ``SiameseFWI_DDWI_CDWI_FWI.ipynb``: notebook using FWI for the Overthrust model (only Vp) with the coupled approaches;
 
 ## Getting started :space_invader: :robot:
 To ensure the reproducibility of the results, we suggest using the `environment.yml` file when creating an environment.
@@ -36,7 +40,7 @@ conda activate ElasticSiameseFWI
 **Disclaimer:** All experiments have been carried on a Intel(R) Xeon(R) CPU @ 2.10GHz equipped with a single NVIDIA GEForce RTX 3090 GPU. Different environment 
 configurations may be required for different combinations of workstation and GPU.
 
-## Cite us 
+## Cite Omar! 
 ```bibtex
 @article{saad2025siamesefwi,
   title={Enhancing Multi-parameter Elastic Full Waveform Inversion with a Siamese Network},
